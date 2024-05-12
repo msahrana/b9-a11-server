@@ -64,6 +64,13 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/applied/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = {email: email};
+      const result = await appliedCollection.find(query).toArray();
+      res.send(result);
+    });
+
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
     );
