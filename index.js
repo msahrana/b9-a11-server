@@ -29,7 +29,9 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     const jobsCollection = client.db("jobNestDB").collection("jobs");
+    const appliedCollection = client.db("jobNestDB").collection("applied");
 
+    /* jobs api */
     app.post("/jobs", async (req, res) => {
       const job = req.body;
       const result = await jobsCollection.insertOne(job);
@@ -51,6 +53,15 @@ async function run() {
     app.get("/jobs/:email", async (req, res) => {
       const email = req.params.email;
       const query = {email: email};
+      const result = await jobsCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    /* applied api */
+    app.post("/applied", async (req, res) => {
+      const applied = req.body;
+      const result = await appliedCollection.insertOne(applied);
+      res.send(result);
     });
 
     console.log(
