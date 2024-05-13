@@ -57,17 +57,14 @@ async function run() {
       res.send(result);
     });
 
-    app.put("/job/:id", async (req, res) => {
+    app.patch("/job/:id", async (req, res) => {
       const id = req.params.id;
-      const jobData = req.body;
       const query = {_id: new ObjectId(id)};
-      const options = {upsert: true};
+      const salary = req.body;
       const updateDoc = {
-        $set: {
-          ...jobData,
-        },
+        $set: salary,
       };
-      const result = await jobsCollection.updateOne(query, updateDoc, options);
+      const result = await jobsCollection.updateOne(query, updateDoc);
       res.send(result);
     });
 
