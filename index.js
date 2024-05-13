@@ -57,10 +57,27 @@ async function run() {
       res.send(result);
     });
 
+    app.delete("/job/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = {_id: new ObjectId(id)};
+      const result = await jobsCollection.deleteOne(query);
+      res.send(result);
+    });
+
     /* applied api */
     app.post("/applied", async (req, res) => {
       const applied = req.body;
-      const result = await appliedCollection.insertOne(applied);
+      const query = {email: applied?.email, jobId: applied?.jobId};
+      const result = await appliedCollection.insertOne(query);
+      const updateDoc = {
+        $inc: {applicantNumber: 1},
+      };
+      const jobQuery = {_id: new ObjectId(applied?.jobId)};
+      const updateBidCount = await jobsCollection.updateOne(
+        jobQuery,
+        updateDoc
+      );
+      console.log(updateBidCount);
       res.send(result);
     });
 
