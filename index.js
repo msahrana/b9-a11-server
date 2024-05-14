@@ -1,7 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
-var cookieParser = require("cookie-parser");
+const cookieParser = require("cookie-parser");
 const {MongoClient, ServerApiVersion, ObjectId} = require("mongodb");
 require("dotenv").config();
 const app = express();
@@ -9,7 +9,11 @@ const port = process.env.PORT || 5000;
 
 app.use(
   cors({
-    origin: ["http://localhost:5173"],
+    origin: [
+      "http://localhost:5173",
+      "https://job-nest-8cab6.web.app",
+      "https://job-nest-8cab6.firebaseapp.com",
+    ],
     credentials: true,
   })
 );
@@ -26,10 +30,47 @@ const client = new MongoClient(uri, {
   },
 });
 
+/* my own middleware */
+const verifyToken = async (req, res, next) => {
+  const token = req?.cookies?.token;
+  if (!token) {
+    return res.status(401).send({massage: "not authorized"});
+  }
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(401).send({massage: "unauthorized"});
+    }
+    req.user = decoded;
+    next();
+  });
+};
+
+const cookieOptions = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+};
+
 async function run() {
   try {
     const jobsCollection = client.db("jobNestDB").collection("jobs");
     const appliedCollection = client.db("jobNestDB").collection("applied");
+
+    /* jwt */
+    app.post("/jwt", async (req, res) => {
+      const user = req.body;
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
+        expiresIn: "1d",
+      });
+      res.cookie("token", token, cookieOptions).send({success: true});
+    });
+
+    app.post("/logout", async (req, res) => {
+      const user = req.body;
+      res
+        .clearCookie("token", {...cookieOptions, maxAge: 0})
+        .send({success: true});
+    });
 
     /* jobs api */
     app.post("/jobs", async (req, res) => {
@@ -50,14 +91,18 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/jobs/:email", async (req, res) => {
+    app.get("/jobs/:email", verifyToken, async (req, res) => {
+      const tokenEmail = req.user.email;
       const email = req.params.email;
+      if (tokenEmail !== email) {
+        return res.status(403).send({massage: "forbidden access"});
+      }
       const query = {email: email};
       const result = await jobsCollection.find(query).toArray();
       res.send(result);
     });
 
-    app.patch("/job/:id", async (req, res) => {
+    app.patch("/job/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
       const query = {_id: new ObjectId(id)};
       const salary = req.body;
@@ -97,6 +142,35 @@ async function run() {
       const query = {email: email};
       const result = await appliedCollection.find(query).toArray();
       res.send(result);
+    });
+
+    /* pagination */
+    app.get("/all-jobs", async (req, res) => {
+      const size = parseInt(req.query.size);
+      const page = parseInt(req.query.page) - 1;
+      const search = req.query.search;
+      const filter = req.query.filter;
+      let query = {
+        job_title: {$regex: search, $options: "i"},
+      };
+      if (filter) query.category = filter;
+      const result = await jobsCollection
+        .find(query)
+        .skip(page * size)
+        .limit(size)
+        .toArray();
+      res.send(result);
+    });
+
+    app.get("/jobs-count", async (req, res) => {
+      const filter = req.query.filter;
+      const search = req.query.search;
+      let query = {
+        job_title: {$regex: search, $options: "i"},
+      };
+      if (filter) query.category = filter;
+      const count = await jobsCollection.countDocuments();
+      res.send({count});
     });
 
     console.log(
