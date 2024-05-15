@@ -7,16 +7,17 @@ require("dotenv").config();
 const app = express();
 const port = process.env.PORT || 5000;
 
-app.use(
-  cors({
-    origin: [
-      "http://localhost:5173",
-      "https://job-nest-8cab6.web.app",
-      "https://job-nest-8cab6.firebaseapp.com",
-    ],
-    credentials: true,
-  })
-);
+const corsOptions = {
+  origin: [
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "https://job-nest-8cab6.web.app",
+    "https://job-nest-8cab6.firebaseapp.com",
+  ],
+  credentials: true,
+  optionSuccessStatus: 200,
+};
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
 
@@ -102,7 +103,7 @@ async function run() {
       res.send(result);
     });
 
-    app.patch("/job/:id", verifyToken, async (req, res) => {
+    app.patch("/job/:id", async (req, res) => {
       const id = req.params.id;
       const query = {_id: new ObjectId(id)};
       const salary = req.body;
@@ -123,7 +124,7 @@ async function run() {
     /* applied api */
     app.post("/applied", async (req, res) => {
       const applied = req.body;
-      const query = {email: applied?.email, jobId: applied?.jobId};
+      const query = {...applied, jobId: applied?.jobId};
       const result = await appliedCollection.insertOne(query);
       const updateDoc = {
         $inc: {applicantNumber: 1},
