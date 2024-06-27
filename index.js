@@ -31,7 +31,7 @@ const client = new MongoClient(uri, {
   },
 });
 
-/* my own middleware */
+/* middleware */
 const verifyToken = async (req, res, next) => {
   const token = req?.cookies?.token;
   if (!token) {
